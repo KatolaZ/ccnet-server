@@ -16,7 +16,11 @@
 
 #ifndef WIN32
 #include <pwd.h>
+#ifdef __OPENBSD__
+#include <uuid.h>
+#else
 #include <uuid/uuid.h>
+#endif /* __OPENBSD__ */
 #endif
 
 #include <unistd.h>
@@ -28,6 +32,10 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
+
+#ifdef __OPENBSD__
+#include <ctype.h>
+#endif
 
 #include <string.h>
 #include <openssl/sha.h>
@@ -489,14 +497,36 @@ ccnet_sha1_equal (const void *v1,
     return 1;
 }
 
+#ifdef __OPENBSD__
+void uuid_to_string_lower(uuid_t *u, char *str, uint32_t *status ){
+
+    int i;
+    char *tmp = NULL;
+
+    uuid_to_string(u, &tmp, status);
+    for(i=0; i<36; i++){
+        str[i] = (char)tolower(tmp[i]);
+    }
+    free(tmp);
+}
+#endif /* __OPENBSD__ */
+
+
 #ifndef WIN32
 char* gen_uuid ()
 {
     char *uuid_str = g_malloc (37);
     uuid_t uuid;
+#ifdef __OPENBSD__
+    uint32_t status;
 
+    uuid_create(&uuid, &status);
+    uuid_to_string_lower(&uuid, uuid_str, &status);
+#else
+ 
     uuid_generate (uuid);
     uuid_unparse_lower (uuid, uuid_str);
+#endif /* __OPENBSD__ */
 
     return uuid_str;
 }
@@ -504,17 +534,30 @@ char* gen_uuid ()
 void gen_uuid_inplace (char *buf)
 {
     uuid_t uuid;
+#ifdef __OPENBSD__
+    uint32_t status;
+
+    uuid_create(&uuid, &status);
+    uuid_to_string_lower(&uuid, buf, &status);
+#else
 
     uuid_generate (uuid);
     uuid_unparse_lower (uuid, buf);
+#endif /* __OPENBSD__ */
 }
 
 gboolean
 is_uuid_valid (const char *uuid_str)
 {
     uuid_t uuid;
+#ifdef __OPENBSD__
+    uint32_t status;
 
+    uuid_from_string(uuid_str, &uuid, &status);
+    if (status == uuid_s_invalid_string_uuid)
+#else
     if (uuid_parse (uuid_str, uuid) < 0)
+#endif /* __OPENBSD__ */
         return FALSE;
     return TRUE;
 }

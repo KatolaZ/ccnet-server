@@ -16,7 +16,11 @@
 
 #ifndef WIN32
 #include <pwd.h>
+#ifdef __OPENBSD__
+#include <uuid.h>
+#else
 #include <uuid/uuid.h>
+#endif /* __OPENBSD__ */
 #endif
 
 #include <unistd.h>
@@ -323,15 +327,35 @@ ccnet_util_expand_path (const char *src)
 #endif
 }
 
+#ifdef __OPENBSD__
+void uuid_to_string_lower(uuid_t *u, char *str, uint32_t *status ){
+
+    int i;
+    char *tmp = NULL;
+
+    uuid_to_string(u, &tmp, status);
+    for(i=0; i<36; i++){
+        str[i] = (char)tolower(tmp[i]);
+    }
+    free(tmp);
+}
+#endif /* __OPENBSD__ */
+
 #ifndef WIN32
 char* ccnet_util_gen_uuid ()
 {
     char *uuid_str = g_malloc (37);
     uuid_t uuid;
+#ifdef __OPENBSD__
+    uint32_t status;
 
+    uuid_create (&uuid, &status);
+    uuid_to_string_lower (&uuid, uuid_str, &status);
+#else
+    
     uuid_generate (uuid);
     uuid_unparse_lower (uuid, uuid_str);
-
+#endif /* __OPENBSD__ */
     return uuid_str;
 }
 
